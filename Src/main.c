@@ -21,7 +21,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include <stdint.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -31,7 +31,12 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+#define SCK PA5 // SPI, PA5
+#define MISO PA6 // SPI, Blue
+#define MOSI PA7 // SPI Green
+#define CS PA10 // SPI, white; uses GPIO
+#define SCL PB8 // i2c gray
+#define SDA PB9 // i2c purple
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
