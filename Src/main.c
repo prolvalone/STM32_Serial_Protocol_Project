@@ -22,6 +22,8 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <stdint.h>
+#include <stdio.h>
+#include <mpu6050.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -53,7 +55,12 @@ SPI_HandleTypeDef hspi1;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
+uint8_t sensor_buffer[3] = {0}; // for recieving data from sensor
+uint8_t Uart_buffer[64]; // for outputting to serial with PUTTY
+uint8_t highest_value,     // to be stored in EEPROM
+		lowest_value;
 
+uint16_t result_x_acc;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -79,7 +86,7 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-
+	uint8_t command = 0x01;
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -104,6 +111,8 @@ int main(void)
   MX_SPI1_Init();
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
+	HAL_Delay(500);
+	mpu6050_Init();
 
   /* USER CODE END 2 */
 
@@ -112,8 +121,12 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
-
+		
     /* USER CODE BEGIN 3 */
+		
+		result_x_acc = mpu6050_mem_read();
+		HAL_Delay(1000);
+		
   }
   /* USER CODE END 3 */
 }
