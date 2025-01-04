@@ -57,8 +57,8 @@ UART_HandleTypeDef huart2;
 /* USER CODE BEGIN PV */
 uint8_t sensor_buffer[3] = {0}; // for recieving data from sensor
 uint8_t Uart_buffer[64]; // for outputting to serial with PUTTY
-uint8_t highest_value,     // to be stored in EEPROM
-		lowest_value;
+uint16_t highest_value = 0x0000,     // to be stored in EEPROM
+		lowest_value = 0xFFFF;
 
 uint16_t result_x_acc;
 /* USER CODE END PV */
@@ -86,7 +86,6 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-	uint8_t command = 0x01;
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -113,6 +112,7 @@ int main(void)
   /* USER CODE BEGIN 2 */
 	HAL_Delay(500);
 	mpu6050_Init();
+	//ATMEL948_Init();
 
   /* USER CODE END 2 */
 
@@ -125,6 +125,13 @@ int main(void)
     /* USER CODE BEGIN 3 */
 		
 		result_x_acc = mpu6050_mem_read();
+		
+		if(result_x_acc > highest_value)
+			highest_value = result_x_acc;
+		
+		if(result_x_acc < lowest_value)
+			lowest_value = result_x_acc;
+		
 		HAL_Delay(1000);
 		
   }
