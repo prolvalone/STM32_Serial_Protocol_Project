@@ -56,16 +56,22 @@ SPI_HandleTypeDef hspi1;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-uint8_t 	sensor_buffer[3] = {0}; // for recieving data from sensor
-char 			Uart_buffer[50]; // for outputting to serial with PUTTY
+uint8_t 	sensor_buffer[3] = {0}; 		// for recieving data from sensor
+char 			Uart_buffer[50]; 						// for outputting to serial with PUTTY
+uint8_t 	Uart_buffert[] = "1,2"; 		// for outputting to serial with PUTTY
+uint8_t 	SPI_Buffer[3];							// for sending data to EEPROM with SPI
+uint8_t 	EEPROM_Data[2];
+
 uint16_t 	highest_value = 0x0000,     // to be stored in EEPROM
 					lowest_value = 0xFFFF;
 
-uint8_t Uart_buffert[] = "1,2";
-uint16_t result_x_acc;
 
-uint8_t low_eeprom_address = 0b0000000;
-uint8_t high_eeprom_address = 0x01;
+uint16_t result_x_acc;									//data from sensor
+
+uint8_t low_eeprom_address = 0x00; // address to store the lowest value
+uint8_t high_eeprom_address = 0x01;			// address to store the highest value
+
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -132,19 +138,20 @@ int main(void)
 		
 		result_x_acc = mpu6050_mem_read();
 		
-		if(result_x_acc > highest_value){
+		if(result_x_acc > highest_value){ // new high
 			highest_value = result_x_acc;
+			Eeprom_write(high_eeprom_address, highest_value);
 			}
 		
-		if(result_x_acc < lowest_value){
+		if(result_x_acc < lowest_value){ // new low
 			lowest_value = result_x_acc;
-		
+			Eeprom_write(low_eeprom_address, lowest_value);
 			}
 		sprintf(Uart_buffer, "Highest Value: %u, Lowest Value: %u", highest_value, lowest_value);
 		HAL_UART_Transmit(&huart2, (uint8_t*)Uart_buffer, sizeof(Uart_buffer), 1000);
 		HAL_Delay(1000);
 		
-			
+		Eeprom_read(0x00);
 		
 			
 		
@@ -329,14 +336,14 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_10, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(CHIP_SELECT_GPIO_Port, CHIP_SELECT_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin : PA10 */
-  GPIO_InitStruct.Pin = GPIO_PIN_10;
+  /*Configure GPIO pin : CHIP_SELECT_Pin */
+  GPIO_InitStruct.Pin = CHIP_SELECT_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+  HAL_GPIO_Init(CHIP_SELECT_GPIO_Port, &GPIO_InitStruct);
 
 /* USER CODE BEGIN MX_GPIO_Init_2 */
 /* USER CODE END MX_GPIO_Init_2 */
