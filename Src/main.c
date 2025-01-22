@@ -24,6 +24,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <mpu6050.h>
+#include <ATM93C46.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -55,13 +56,16 @@ SPI_HandleTypeDef hspi1;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-uint8_t sensor_buffer[3] = {0}; // for recieving data from sensor
-uint8_t Uart_buffer[2]= {0}; // for outputting to serial with PUTTY
-uint16_t highest_value = 0x0000,     // to be stored in EEPROM
-		lowest_value = 0xFFFF;
+uint8_t 	sensor_buffer[3] = {0}; // for recieving data from sensor
+char 			Uart_buffer[50]; // for outputting to serial with PUTTY
+uint16_t 	highest_value = 0x0000,     // to be stored in EEPROM
+					lowest_value = 0xFFFF;
 
 uint8_t Uart_buffert[] = "1,2";
 uint16_t result_x_acc;
+
+uint8_t low_eeprom_address = 0b0000000;
+uint8_t high_eeprom_address = 0x01;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -113,7 +117,8 @@ int main(void)
   /* USER CODE BEGIN 2 */
 	HAL_Delay(500);
 	mpu6050_Init();
-	//ATMEL948_Init();
+	Eeprom_enable(); // enable EWEN for ATM93C46
+	
 
   /* USER CODE END 2 */
 
@@ -122,24 +127,26 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
-		
+
     /* USER CODE BEGIN 3 */
 		
 		result_x_acc = mpu6050_mem_read();
 		
 		if(result_x_acc > highest_value){
 			highest_value = result_x_acc;
-			Uart_buffer[0] = (uint8_t)highest_value;
 			}
 		
 		if(result_x_acc < lowest_value){
 			lowest_value = result_x_acc;
-			Uart_buffer[1] = (uint8_t)lowest_value;
-			}
 		
-		HAL_UART_Transmit(&huart2, Uart_buffer, 2, 1000);
+			}
+		sprintf(Uart_buffer, "Highest Value: %u, Lowest Value: %u", highest_value, lowest_value);
+		HAL_UART_Transmit(&huart2, (uint8_t*)Uart_buffer, sizeof(Uart_buffer), 1000);
 		HAL_Delay(1000);
 		
+			
+		
+			
 		
   }
 	/****************************************************************************************************************************/
