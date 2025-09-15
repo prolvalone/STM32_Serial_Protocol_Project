@@ -25,6 +25,7 @@
 #include <stdio.h>
 #include <mpu6050.h>
 #include <ATM93C46.h>
+#include <string.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -51,14 +52,20 @@
 
 I2C_HandleTypeDef hi2c1;
 
-SPI_HandleTypeDef hspi1;
+TIM_HandleTypeDef htim1;
 
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-uint8_t 	sensor_buffer[3] = {0}; 		// for recieving data from sensor
-char 			Uart_buffer[50]; 						// for outputting to serial with PUTTY
-uint8_t 	Uart_buffert[] = "1,2"; 		// for outputting to serial with PUTTY
+uint8_t 	sensor_buffer[3] = {0}; 		// for recieving data from sensor						// for outputting to serial with PUTTY
+char 	menu[] = "WELCOME TO EEPROM DEVICE MANAGER\r\n"
+											"Enter Your Desired Action:\r\n"
+											"1. ERASE\r\n"
+											"2. ERAL\r\n"
+											"3. WRITE\r\n"
+											"4. WRAL\r\n"
+											"5. READ\r\n"
+											"6. EWDS\r\n";
 uint8_t 	SPI_Buffer[3];							// for sending data to EEPROM with SPI
 uint8_t 	EEPROM_Data[2];
 
@@ -71,15 +78,19 @@ uint16_t result_x_acc;									//data from sensor
 uint8_t low_eeprom_address = 0x00; // address to store the lowest value
 uint8_t high_eeprom_address = 0x01;			// address to store the highest value
 
-
+uint8_t ReadValue;
+uint8_t rx_indx;
+uint8_t rx_data;
+uint8_t rx_buffer[100];
+uint8_t transfer_Complete;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_I2C1_Init(void);
-static void MX_SPI1_Init(void);
 static void MX_USART2_UART_Init(void);
+static void MX_TIM1_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -118,12 +129,25 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_I2C1_Init();
-  MX_SPI1_Init();
   MX_USART2_UART_Init();
+  MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
+	HAL_TIM_Base_Start(&htim1);  // start the Timer1
 	HAL_Delay(500);
 	mpu6050_Init();
-	Eeprom_enable(); // enable EWEN for ATM93C46
+	Atm93c46_EWEN(); // Read and write enable EEPROM
+	
+	HAL_UART_Transmit(&huart2, (uint8_t*)menu, strlen(menu), HAL_MAX_DELAY); // send welcome message and menu
+	
+	
+	HAL_UART_Transmit(&huart2, (uint8_t*)"Enter Here: ", strlen(menu), HAL_MAX_DELAY);
+	HAL_UART_Receive_IT(&huart2, &rx_data, 1);
+	HAL_UART_Transmit(&huart2, &rx_data, 1, HAL_MAX_DELAY);
+	
+	
+	
+	
+	
 	
 
   /* USER CODE END 2 */
@@ -135,25 +159,43 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-		
-		result_x_acc = mpu6050_mem_read();
-		
-		if(result_x_acc > highest_value){ // new high
-			highest_value = result_x_acc;
-			Eeprom_write(high_eeprom_address, highest_value);
-			}
-		
-		if(result_x_acc < lowest_value){ // new low
-			lowest_value = result_x_acc;
-			Eeprom_write(low_eeprom_address, lowest_value);
-			}
-		sprintf(Uart_buffer, "Highest Value: %u, Lowest Value: %u", highest_value, lowest_value);
-		HAL_UART_Transmit(&huart2, (uint8_t*)Uart_buffer, sizeof(Uart_buffer), 1000);
-		HAL_Delay(1000);
-		
-		Eeprom_read(0x00);
-		
+		if(transfer_Complete)
+		{
+			transfer_Complete = 0;
+			char action[8];
+			int address = 0;
+			int value = 0;
 			
+			sscanf((char*)rx_buffer, "%s %d %d", action, &address, &value);
+			
+			switch (action[0])
+            {
+                case '1':  // ERASE
+                    Atm93c46_ERASE((uint8_t)address);
+                    break;
+                case '2':  // ERAL
+                    Atm93c46_ERAL();
+                    break;
+                case '3':  // WRITE
+                    Atm93c46_WRITE((uint8_t)address, (uint8_t)value);
+                    break;
+                case '4':  // WRAL
+                    Atm93c46_WRAL((uint8_t)value);
+                    break;
+                case '5':  // READ
+                    ReadValue = Atm93c46_READ((uint8_t)address);
+                    char buf[32];
+                    sprintf(buf, "\r\nData at %d = 0x%02X\r\n", address, ReadValue);
+                    HAL_UART_Transmit(&huart2, (uint8_t*)buf, strlen(buf), HAL_MAX_DELAY);
+                    break;
+                case '6':  // EWDS
+                    Atm93c46_EWDS();
+                    break;
+            }
+						HAL_UART_Transmit(&huart2, (uint8_t*)menu, strlen(menu), HAL_MAX_DELAY);
+
+		}
+		
 		
   }
 	/****************************************************************************************************************************/
@@ -245,42 +287,49 @@ static void MX_I2C1_Init(void)
 }
 
 /**
-  * @brief SPI1 Initialization Function
+  * @brief TIM1 Initialization Function
   * @param None
   * @retval None
   */
-static void MX_SPI1_Init(void)
+static void MX_TIM1_Init(void)
 {
 
-  /* USER CODE BEGIN SPI1_Init 0 */
+  /* USER CODE BEGIN TIM1_Init 0 */
 
-  /* USER CODE END SPI1_Init 0 */
+  /* USER CODE END TIM1_Init 0 */
 
-  /* USER CODE BEGIN SPI1_Init 1 */
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
 
-  /* USER CODE END SPI1_Init 1 */
-  /* SPI1 parameter configuration*/
-  hspi1.Instance = SPI1;
-  hspi1.Init.Mode = SPI_MODE_MASTER;
-  hspi1.Init.Direction = SPI_DIRECTION_2LINES;
-  hspi1.Init.DataSize = SPI_DATASIZE_8BIT;
-  hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
-  hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
-  hspi1.Init.NSS = SPI_NSS_SOFT;
-  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
-  hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
-  hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
-  hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
-  hspi1.Init.CRCPolynomial = 7;
-  hspi1.Init.CRCLength = SPI_CRC_LENGTH_DATASIZE;
-  hspi1.Init.NSSPMode = SPI_NSS_PULSE_ENABLE;
-  if (HAL_SPI_Init(&hspi1) != HAL_OK)
+  /* USER CODE BEGIN TIM1_Init 1 */
+
+  /* USER CODE END TIM1_Init 1 */
+  htim1.Instance = TIM1;
+  htim1.Init.Prescaler = 11;
+  htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim1.Init.Period = 65535;
+  htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim1.Init.RepetitionCounter = 0;
+  htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim1) != HAL_OK)
   {
     Error_Handler();
   }
-  /* USER CODE BEGIN SPI1_Init 2 */
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim1, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterOutputTrigger2 = TIM_TRGO2_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim1, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM1_Init 2 */
 
-  /* USER CODE END SPI1_Init 2 */
+  /* USER CODE END TIM1_Init 2 */
 
 }
 
@@ -336,7 +385,20 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(CHIP_SELECT_GPIO_Port, CHIP_SELECT_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, SHIFT_CLOCK_Pin|DATA_IN_Pin|CHIP_SELECT_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pins : SHIFT_CLOCK_Pin DATA_IN_Pin */
+  GPIO_InitStruct.Pin = SHIFT_CLOCK_Pin|DATA_IN_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : DATA_OUT_Pin */
+  GPIO_InitStruct.Pin = DATA_OUT_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  HAL_GPIO_Init(DATA_OUT_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : CHIP_SELECT_Pin */
   GPIO_InitStruct.Pin = CHIP_SELECT_Pin;
@@ -350,6 +412,33 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+  /* Prevent unused argument(s) compilation warning */
+  
+
+  /* NOTE : This function should not be modified, when the callback is needed,
+            the HAL_UART_RxCpltCallback can be implemented in the user file.
+   */
+	if (huart -> Instance==USART2){
+		HAL_UART_Transmit(&huart2, &rx_data, 1 , HAL_MAX_DELAY);
+		if(rx_data == '\n' || rx_data == '\r'){
+			rx_buffer[rx_indx] = '\0';
+			rx_indx = 0;
+			transfer_Complete = 1;
+		}
+		else{
+			if(rx_indx < sizeof(rx_buffer)-1){
+				rx_buffer[rx_indx++] = rx_data;
+			}
+		}
+		HAL_UART_Receive_IT(&huart2, &rx_data, 1);
+	}
+	
+	
+}
+
 
 /* USER CODE END 4 */
 

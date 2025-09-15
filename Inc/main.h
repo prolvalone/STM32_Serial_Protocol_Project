@@ -57,6 +57,12 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define SHIFT_CLOCK_Pin GPIO_PIN_5
+#define SHIFT_CLOCK_GPIO_Port GPIOA
+#define DATA_OUT_Pin GPIO_PIN_6
+#define DATA_OUT_GPIO_Port GPIOA
+#define DATA_IN_Pin GPIO_PIN_7
+#define DATA_IN_GPIO_Port GPIOA
 #define CHIP_SELECT_Pin GPIO_PIN_10
 #define CHIP_SELECT_GPIO_Port GPIOA
 
