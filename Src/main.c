@@ -22,6 +22,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <stdint.h>
+#include <stdlib.h>
 #include <stdio.h>
 #include <mpu6050.h>
 #include <ATM93C46.h>
@@ -66,23 +67,26 @@ char 	menu[] = "WELCOME TO EEPROM DEVICE MANAGER\r\n"
 											"4. WRAL\r\n"
 											"5. READ\r\n"
 											"6. EWDS\r\n";
-uint8_t 	SPI_Buffer[3];							// for sending data to EEPROM with SPI
 uint8_t 	EEPROM_Data[2];
-
-uint16_t 	highest_value = 0x0000,     // to be stored in EEPROM
-					lowest_value = 0xFFFF;
-
 
 uint16_t result_x_acc;									//data from sensor
 
-uint8_t low_eeprom_address = 0x00; // address to store the lowest value
-uint8_t high_eeprom_address = 0x01;			// address to store the highest value
-
 uint8_t ReadValue;
-uint8_t rx_indx;
-uint8_t rx_data;
+static int rx_indx; // index of the user input
+uint8_t rx_data = 0;
 uint8_t rx_buffer[100];
-uint8_t transfer_Complete;
+uint8_t transfer_complete;
+
+typedef enum{
+	CMD_NONE,
+	CMD_ERASE,
+	CMD_WRITE,
+	CMD_READ,
+	CMD_WRAL
+	
+}CmdState;
+CmdState current_state = CMD_NONE;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -92,7 +96,8 @@ static void MX_I2C1_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_TIM1_Init(void);
 /* USER CODE BEGIN PFP */
-
+void interpretCommand(uint8_t *cmd);
+void uartSend(char *msg);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -138,11 +143,8 @@ int main(void)
 	Atm93c46_EWEN(); // Read and write enable EEPROM
 	
 	HAL_UART_Transmit(&huart2, (uint8_t*)menu, strlen(menu), HAL_MAX_DELAY); // send welcome message and menu
-	
-	
-	HAL_UART_Transmit(&huart2, (uint8_t*)"Enter Here: ", strlen(menu), HAL_MAX_DELAY);
-	HAL_UART_Receive_IT(&huart2, &rx_data, 1);
-	HAL_UART_Transmit(&huart2, &rx_data, 1, HAL_MAX_DELAY);
+	HAL_UART_Transmit(&huart2, (uint8_t*)"Enter Here: ", 12, HAL_MAX_DELAY); // send enter here
+	HAL_UART_Receive_IT(&huart2, &rx_data, 1); // recieve input
 	
 	
 	
@@ -156,48 +158,15 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+		
+	}
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-		if(transfer_Complete)
-		{
-			transfer_Complete = 0;
-			char action[8];
-			int address = 0;
-			int value = 0;
-			
-			sscanf((char*)rx_buffer, "%s %d %d", action, &address, &value);
-			
-			switch (action[0])
-            {
-                case '1':  // ERASE
-                    Atm93c46_ERASE((uint8_t)address);
-                    break;
-                case '2':  // ERAL
-                    Atm93c46_ERAL();
-                    break;
-                case '3':  // WRITE
-                    Atm93c46_WRITE((uint8_t)address, (uint8_t)value);
-                    break;
-                case '4':  // WRAL
-                    Atm93c46_WRAL((uint8_t)value);
-                    break;
-                case '5':  // READ
-                    ReadValue = Atm93c46_READ((uint8_t)address);
-                    char buf[32];
-                    sprintf(buf, "\r\nData at %d = 0x%02X\r\n", address, ReadValue);
-                    HAL_UART_Transmit(&huart2, (uint8_t*)buf, strlen(buf), HAL_MAX_DELAY);
-                    break;
-                case '6':  // EWDS
-                    Atm93c46_EWDS();
-                    break;
-            }
-						HAL_UART_Transmit(&huart2, (uint8_t*)menu, strlen(menu), HAL_MAX_DELAY);
-
-		}
 		
 		
-  }
+		
+  
 	/****************************************************************************************************************************/
   /* USER CODE END 3 */
 }
@@ -413,7 +382,7 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN 4 */
 
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) 
 {
   /* Prevent unused argument(s) compilation warning */
   
@@ -421,22 +390,128 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
   /* NOTE : This function should not be modified, when the callback is needed,
             the HAL_UART_RxCpltCallback can be implemented in the user file.
    */
-	if (huart -> Instance==USART2){
-		HAL_UART_Transmit(&huart2, &rx_data, 1 , HAL_MAX_DELAY);
-		if(rx_data == '\n' || rx_data == '\r'){
-			rx_buffer[rx_indx] = '\0';
-			rx_indx = 0;
-			transfer_Complete = 1;
-		}
-		else{
-			if(rx_indx < sizeof(rx_buffer)-1){
-				rx_buffer[rx_indx++] = rx_data;
-			}
-		}
-		HAL_UART_Receive_IT(&huart2, &rx_data, 1);
-	}
+		
+		//recieve the sent char
+		if (rx_data == '\r' || rx_data == '\n') {
+        rx_buffer[rx_indx] = '\0';  // terminate
+        rx_indx = 0;
+        HAL_UART_Transmit(&huart2, (uint8_t*)"\r\n", 2, HAL_MAX_DELAY);
+				
+				interpretCommand(rx_buffer);
+    } else {
+        rx_buffer[rx_indx++] = rx_data;
+        HAL_UART_Transmit(&huart2, &rx_data, 1, HAL_MAX_DELAY);
+    }
+    HAL_UART_Receive_IT(&huart2, &rx_data, 1);
+		
+		
 	
-	
+}
+
+void interpretCommand(uint8_t *cmd)
+{
+    switch(current_state) {
+        case CMD_NONE:
+            switch(cmd[0]) {
+                case '1':   // ERASE
+                    uartSend("Please Enter the Memory Location To Erase: ");
+                    current_state = CMD_ERASE;
+                    break;
+
+                case '2':   // ERAL
+                    Atm93c46_ERAL();
+                    uartSend("Successfully Erased All Memory Locations\r\n");
+										uartSend("Enter Here: ");
+                    break;
+
+                case '3':   // WRITE
+                    uartSend("Please Enter the Memory Location to Write: ");
+                    current_state = CMD_WRITE;
+                    break;
+
+                case '4':   // WRAL
+                    uartSend("Please Enter the Value to WRAL: ");
+                    current_state = CMD_WRAL;
+                    break;
+
+                case '5':   // READ
+                    uartSend("Please Enter the Memory Location to READ: ");
+                    current_state = CMD_READ;
+                    break;
+
+                case '6':   // EWDS
+                    Atm93c46_EWDS();
+                    uartSend("Disabled Writing to Chip\r\n");
+										uartSend("Enter Here: ");
+                    break;
+
+                default:
+                    uartSend("Unknown command\r\n");
+                    break;
+            }
+            break;   
+
+        case CMD_ERASE:
+        {
+            uint8_t addr = (uint8_t)strtoul((char*)cmd, NULL, 16);
+            Atm93c46_ERASE(addr);
+
+            char msg[50];
+            sprintf(msg, "Successfully Erased %u\r\n", (uint8_t)addr);
+            uartSend(msg);
+
+            current_state = CMD_NONE;
+            uartSend("Enter Here: ");
+        }
+        break;
+
+        case CMD_WRITE:
+        {
+            uint8_t addr = (uint8_t)strtoul((char*)cmd, NULL,16);
+            Atm93c46_WRITE(addr, 0x00);
+
+            char msg[50];
+            sprintf(msg, "Successfully Wrote to %u\r\n", (uint8_t)addr);
+            uartSend(msg);
+
+            current_state = CMD_NONE;
+            uartSend("Enter Here: ");
+        }
+        break;
+
+        case CMD_WRAL:
+        {
+            uint8_t val = (uint8_t)strtoul((char*)cmd, NULL, 16);
+            Atm93c46_WRAL(val);
+
+            char msg[50];
+            sprintf(msg, "Successfully Wrote Value %u to All\r\n", val);
+            uartSend(msg);
+
+            current_state = CMD_NONE;
+            uartSend("Enter Here: ");
+        }
+        break;
+
+        case CMD_READ:
+        {
+            uint8_t addr = (uint8_t)strtoul((char*)cmd, NULL, 16);
+            uint8_t val  = Atm93c46_READ(addr);
+
+            char msg[50];
+            sprintf(msg, "Read Value %u from Address %u\r\n", val, (uint8_t)addr);
+            uartSend(msg);
+
+            current_state = CMD_NONE;
+            uartSend("Enter Here: ");
+        }
+        break;
+    }
+}
+
+void uartSend(char *msg)
+{
+    HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
 }
 
 

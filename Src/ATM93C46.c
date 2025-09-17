@@ -55,7 +55,7 @@ void Atm93c46_ERAL(void) {
     delay_us(10);
     Atm93c46_Send_Command(0b1001011111, 10);
     HAL_GPIO_WritePin(GPIOA, CHIP_SELECT_Pin, GPIO_PIN_RESET);
-    HAL_Delay(5); 
+    delay_us(10);
 }
 
 uint8_t Atm93c46_READ(uint8_t address) {
@@ -113,7 +113,7 @@ void Atm93c46_WRAL(uint8_t data) {
     Atm93c46_Send_Data(data);
 
     HAL_GPIO_WritePin(GPIOA, CHIP_SELECT_Pin, GPIO_PIN_RESET);
-    HAL_Delay(5); 
+    delay_us(10);
 }
 
 void Atm93c46_ERASE(uint8_t address) {
@@ -125,5 +125,5 @@ void Atm93c46_ERASE(uint8_t address) {
     Atm93c46_Send_Command(command, 10);
 
     HAL_GPIO_WritePin(GPIOA, CHIP_SELECT_Pin, GPIO_PIN_RESET);
-    HAL_Delay(5); // Long erase time
+    delay_us(10);
 }
