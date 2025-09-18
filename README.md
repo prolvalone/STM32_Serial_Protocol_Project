@@ -52,16 +52,8 @@ Waveforms captured during EEPROM operations using Saleae:
 - Command timing validation 
 - Protocol compliance verification  
 
-📷 *Insert annotated Saleae screenshots here:*  
+📷 *Example of custom bit-banged logic and UART*  
 ![Logic Analyzer Example](images/LogicSaleae.PNG)  
 
 ---
 
-## 💻 Example Usage
-
-### UART Command Interface
-```txt
-> Select EEPROM Command:
-1 - Read
-2 - Write
-3 - Erase
