@@ -33,8 +33,7 @@ This project demonstrates the development of **custom low-level drivers** for th
 - Breadboard, jumper wires, power supply  
 
 📷  
-![Device Photo](images/deviceWires.jpg)  
-
+<img src="images/deviceWires.jpg" alt="Device Photo" width="400"/>
 ---
 
 ## 📡 Communication Interfaces
