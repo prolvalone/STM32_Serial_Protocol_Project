@@ -43,7 +43,7 @@ This project demonstrates the development of **custom low-level drivers** for th
 - **PC ↔ STM32:** UART  
 
 📷 *Example UART session:*  
-![UART Screenshot](images/putty.png)  
+![UART Screenshot](images/putty.PNG)  
 
 ---
 
@@ -53,7 +53,7 @@ Waveforms captured during EEPROM operations using Saleae:
 - Protocol compliance verification  
 
 📷 *Insert annotated Saleae screenshots here:*  
-![Logic Analyzer Example](images/LogicSaleae.png)  
+![Logic Analyzer Example](images/LogicSaleae.PNG)  
 
 ---
 
