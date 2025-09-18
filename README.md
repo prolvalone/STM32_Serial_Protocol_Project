@@ -32,8 +32,8 @@ This project demonstrates the development of **custom low-level drivers** for th
 - Saleae Logic Analyzer + Software  
 - Breadboard, jumper wires, power supply  
 
-📷 *Insert photo of your actual breadboard/device setup here:*  
-![Device Photo](images/device.jpg)  
+📷  
+![Device Photo](images/deviceWires.jpg)  
 
 ---
 
@@ -43,7 +43,7 @@ This project demonstrates the development of **custom low-level drivers** for th
 - **PC ↔ STM32:** UART  
 
 📷 *Example UART session:*  
-![UART Screenshot](images/uart_terminal.png)  
+![UART Screenshot](images/putty.png)  
 
 ---
 
@@ -53,7 +53,7 @@ Waveforms captured during EEPROM operations using Saleae:
 - Protocol compliance verification  
 
 📷 *Insert annotated Saleae screenshots here:*  
-![Logic Analyzer Screenshot](images/logic_analysis.png)  
+![Logic Analyzer Example](images/LogicSaleae.png)  
 
 ---
 
